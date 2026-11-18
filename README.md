@@ -59,27 +59,63 @@ Tapedeck runs OkHttp's **MockWebServer** directly inside the **Macrobenchmark te
 
 ---
 
+## Installation
+
+### Option 1: Via JitPack (Instant access, no authentication required)
+
+Add JitPack to your `settings.gradle.kts`:
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+Add dependencies to your app and benchmark modules:
+```kotlin
+// App module (build.gradle.kts)
+benchmarkImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp:v0.1.0")
+releaseImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp-noop:v0.1.0")
+
+// Macrobenchmark module (build.gradle.kts)
+implementation("com.github.jrocharodrigues.tapedeck:tapedeck-macrobenchmark:v0.1.0")
+```
+
+### Option 2: Via GitHub Packages
+
+Add GitHub Packages to your `settings.gradle.kts`:
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/jrocharodrigues/tapedeck")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: "<your-github-username>"
+                password = System.getenv("GITHUB_TOKEN") ?: "<your-github-pat>"
+            }
+        }
+    }
+}
+```
+
+Add dependencies using the standard coordinates:
+```kotlin
+// App module (build.gradle.kts)
+benchmarkImplementation("com.impecabel.tapedeck:tapedeck-okhttp:0.1.0")
+releaseImplementation("com.impecabel.tapedeck:tapedeck-okhttp-noop:0.1.0")
+
+// Macrobenchmark module (build.gradle.kts)
+implementation("com.impecabel.tapedeck:tapedeck-macrobenchmark:0.1.0")
+```
+
+---
+
 ## Quickstart
-
-### 1. Add Dependencies
-
-In your app's `build.gradle.kts`:
-```kotlin
-dependencies {
-    // Benchmark builds use the active interceptor
-    benchmarkImplementation("com.impecabel.tapedeck:tapedeck-okhttp:0.1.0")
-
-    // Release builds use the no-op implementation
-    releaseImplementation("com.impecabel.tapedeck:tapedeck-okhttp-noop:0.1.0")
-}
-```
-
-In your macrobenchmark module's `build.gradle.kts`:
-```kotlin
-dependencies {
-    implementation("com.impecabel.tapedeck:tapedeck-macrobenchmark:0.1.0")
-}
-```
 
 ### 2. Configure Cleartext Traffic for Localhost
 
