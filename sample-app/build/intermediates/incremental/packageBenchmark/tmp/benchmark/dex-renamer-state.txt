@@ -1,7 +1,0 @@
-#Wed Nov 18 11:59:35 WET 2026
-base.0=/Users/jrodrigues/Developer/repos/tapedeck/sample-app/build/intermediates/dex/benchmark/mergeDexBenchmark/classes.dex
-base.1=/Users/jrodrigues/Developer/repos/tapedeck/sample-app/build/intermediates/global_synthetics_dex/benchmark/mergeBenchmarkGlobalSynthetics/classes.dex
-path.0=classes.dex
-path.1=classes.dex
-renamed.0=classes.dex
-renamed.1=classes2.dex

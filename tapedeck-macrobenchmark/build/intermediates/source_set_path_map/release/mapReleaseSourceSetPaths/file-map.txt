@@ -1,7 +1,0 @@
-io.github.tapedeck.macrobenchmark.tapedeck-macrobenchmark-pngs-0 /Users/jrodrigues/Developer/repos/tapedeck/tapedeck-macrobenchmark/build/generated/res/pngs/release
-io.github.tapedeck.macrobenchmark.tapedeck-macrobenchmark-resValues-1 /Users/jrodrigues/Developer/repos/tapedeck/tapedeck-macrobenchmark/build/generated/res/resValues/release
-io.github.tapedeck.macrobenchmark.tapedeck-macrobenchmark-mergeReleaseResources-2 /Users/jrodrigues/Developer/repos/tapedeck/tapedeck-macrobenchmark/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
-io.github.tapedeck.macrobenchmark.tapedeck-macrobenchmark-mergeReleaseResources-3 /Users/jrodrigues/Developer/repos/tapedeck/tapedeck-macrobenchmark/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
-io.github.tapedeck.macrobenchmark.tapedeck-macrobenchmark-release-4 /Users/jrodrigues/Developer/repos/tapedeck/tapedeck-macrobenchmark/build/intermediates/merged_res/release/mergeReleaseResources
-io.github.tapedeck.macrobenchmark.tapedeck-macrobenchmark-main-5 /Users/jrodrigues/Developer/repos/tapedeck/tapedeck-macrobenchmark/src/main/res
-io.github.tapedeck.macrobenchmark.tapedeck-macrobenchmark-release-6 /Users/jrodrigues/Developer/repos/tapedeck/tapedeck-macrobenchmark/src/release/res
