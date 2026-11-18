@@ -1,0 +1,109 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.tapedeck",
+    "module": "tapedeck-core",
+    "version": "0.1.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.1.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "tapedeck-core-0.1.0.jar",
+          "url": "tapedeck-core-0.1.0.jar",
+          "size": 108637,
+          "sha512": "659138949295ae35de675c5e4dc319109366f9f97a8ff061cf7331c767d38705de5ab05f69522fbf4ed116c3dc052005233d0d1b7db9db412f7e47573e00f530",
+          "sha256": "16cae2e54dae69a061134fb84b38d5a684ec9af3400e57d820047f0ab874bf5e",
+          "sha1": "d4525dd7445b6ff9440e805195835ec42dccaea2",
+          "md5": "1bcda59beab07c38871c55159f3fb3a5"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.7.3"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.1.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "tapedeck-core-0.1.0.jar",
+          "url": "tapedeck-core-0.1.0.jar",
+          "size": 108637,
+          "sha512": "659138949295ae35de675c5e4dc319109366f9f97a8ff061cf7331c767d38705de5ab05f69522fbf4ed116c3dc052005233d0d1b7db9db412f7e47573e00f530",
+          "sha256": "16cae2e54dae69a061134fb84b38d5a684ec9af3400e57d820047f0ab874bf5e",
+          "sha1": "d4525dd7445b6ff9440e805195835ec42dccaea2",
+          "md5": "1bcda59beab07c38871c55159f3fb3a5"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "tapedeck-core-0.1.0-sources.jar",
+          "url": "tapedeck-core-0.1.0-sources.jar",
+          "size": 6007,
+          "sha512": "c1b2a3a6c1998e99824008999984739ef41375ef05fc0b5faf6abea9fb8b34682c758184e7d095a2b1e28251b1eab04ed85fad2b01a946f8b7bf27a1887834be",
+          "sha256": "e575597188594eb04a0168458f21316cef5a0d4f2a8823c00209f28f2ef6a058",
+          "sha1": "2d29ca333ad142fa1a23c6c9e970ef02bb59a53a",
+          "md5": "17a5bec8391be783d9cb8ea50223abb6"
+        }
+      ]
+    }
+  ]
+}

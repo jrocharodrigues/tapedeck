@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.tapedeck.okhttp.ReplayInterceptorNoopTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-18T11:44:48.610Z" hostname="bookie" time="0.023">
+  <properties/>
+  <testcase name="noop interceptor passes request directly" classname="io.github.tapedeck.okhttp.ReplayInterceptorNoopTest" time="0.023"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

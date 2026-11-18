@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.tapedeck.core.model.HarCodecTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-18T11:36:57.629Z" hostname="bookie" time="0.02">
+  <properties/>
+  <testcase name="encode and decode HAR entries roundtrip" classname="io.github.tapedeck.core.model.HarCodecTest" time="0.019"/>
+  <testcase name="binary payloads encoded as base64 in HAR" classname="io.github.tapedeck.core.model.HarCodecTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

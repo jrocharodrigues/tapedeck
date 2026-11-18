@@ -1,0 +1,130 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.tapedeck",
+    "module": "tapedeck-okhttp",
+    "version": "0.1.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "io.github.tapedeck",
+          "module": "tapedeck-core",
+          "version": {
+            "requires": "0.1.0"
+          }
+        },
+        {
+          "group": "com.squareup.okhttp3",
+          "module": "okhttp",
+          "version": {
+            "requires": "4.12.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.1.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "tapedeck-okhttp-0.1.0.jar",
+          "url": "tapedeck-okhttp-0.1.0.jar",
+          "size": 4253,
+          "sha512": "da66c3eca5576156d20e946351aa0e595b419b16b4540f9813f827b4f76ad60eda4d280d93d7af229d8b2e012f678e2991878f73c81212843ef588969ab766a6",
+          "sha256": "0c6ca36e11827856002466d1ddfb6d93fffb800e7701d8c119a30eaad2bc7267",
+          "sha1": "29d34a15e049dc0c52c1f06b719786fa69584257",
+          "md5": "690ddc0522ee184e47262cfbd27577ba"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "io.github.tapedeck",
+          "module": "tapedeck-core",
+          "version": {
+            "requires": "0.1.0"
+          }
+        },
+        {
+          "group": "com.squareup.okhttp3",
+          "module": "okhttp",
+          "version": {
+            "requires": "4.12.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.1.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "tapedeck-okhttp-0.1.0.jar",
+          "url": "tapedeck-okhttp-0.1.0.jar",
+          "size": 4253,
+          "sha512": "da66c3eca5576156d20e946351aa0e595b419b16b4540f9813f827b4f76ad60eda4d280d93d7af229d8b2e012f678e2991878f73c81212843ef588969ab766a6",
+          "sha256": "0c6ca36e11827856002466d1ddfb6d93fffb800e7701d8c119a30eaad2bc7267",
+          "sha1": "29d34a15e049dc0c52c1f06b719786fa69584257",
+          "md5": "690ddc0522ee184e47262cfbd27577ba"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "tapedeck-okhttp-0.1.0-sources.jar",
+          "url": "tapedeck-okhttp-0.1.0-sources.jar",
+          "size": 1647,
+          "sha512": "4690dbd6cb050a9ada5de7972fd9cfa2fafba0859e1e1ba8abd0e2003d50ab23c12f099558e4b3faf85a06c8a7e46259038183f29711072c7c13b6c665359c90",
+          "sha256": "da71d8ecd6f9bb6f27a53f08d985bb0145518e97adc5c6772ae2dd0a13a96710",
+          "sha1": "5623d3bb8deedb6d880578596a6603611a7f031f",
+          "md5": "68ddab22cee8c749ce0947e484d810a6"
+        }
+      ]
+    }
+  ]
+}
