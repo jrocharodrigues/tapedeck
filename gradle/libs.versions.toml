@@ -1,6 +1,8 @@
 [versions]
+# Lowest Kotlin the published modules support for consumers (their language/API version and standard library)
+kotlin-consumer = "2.0.21"
 agp = "8.7.3"
-kotlin = "2.1.0"
+kotlin = "2.4.10"
 kotlinx-serialization = "1.7.3"
 okhttp = "4.12.0"
 androidx-benchmark = "1.3.3"

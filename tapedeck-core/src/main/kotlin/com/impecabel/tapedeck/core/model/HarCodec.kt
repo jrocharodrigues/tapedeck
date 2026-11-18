@@ -1,5 +1,6 @@
 package com.impecabel.tapedeck.core.model
 
+import com.impecabel.tapedeck.core.Tapedeck
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.InputStream
@@ -15,7 +16,7 @@ object HarCodec {
 
     fun encode(root: HarRoot): String = json.encodeToString(HarRoot.serializer(), root)
 
-    fun encode(entries: List<HarEntry>, creatorVersion: String = "0.1.0"): String {
+    fun encode(entries: List<HarEntry>, creatorVersion: String = Tapedeck.VERSION): String {
         val root = HarRoot(
             log = HarLog(
                 version = "1.2",

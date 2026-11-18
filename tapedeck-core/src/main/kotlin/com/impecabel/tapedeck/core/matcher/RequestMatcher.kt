@@ -1,10 +1,17 @@
 package com.impecabel.tapedeck.core.matcher
 
-import com.impecabel.tapedeck.core.model.RecordedExchange
 import com.impecabel.tapedeck.core.model.RecordedRequest
 
 fun interface RequestMatcher {
     fun matches(recorded: RecordedRequest, incoming: RecordedRequest): Boolean
+
+    /**
+     * How well [recorded] matches [incoming]: 0 is no match, and higher is better. A recording answers a request with the
+     * best-scoring entry, and with the earliest recorded one among equal scores.
+     *
+     * Defaults to 1 for any match. Override it when a matcher has several levels of match (see [CompositeRequestMatcher]).
+     */
+    fun score(recorded: RecordedRequest, incoming: RecordedRequest): Int = if (matches(recorded, incoming)) 1 else 0
 }
 
 class ExactUrlMatcher : RequestMatcher {
@@ -22,41 +29,37 @@ class PathMatcher : RequestMatcher {
     }
 }
 
+/**
+ * Matches GET and HEAD requests, and POST requests to [replayPostPaths]: by method and full URL (score [EXACT]), or else
+ * by method, host and path, ignoring the query (score [PATH]). Across a whole recording, an exact match always wins over
+ * a path-only one.
+ */
 class CompositeRequestMatcher(
     private val replayPostPaths: Set<String> = emptySet(),
     private val matchPostBodyHash: Boolean = false,
     private val ignoredQueryParams: Set<String> = emptySet()
 ) : RequestMatcher {
 
-    override fun matches(recorded: RecordedRequest, incoming: RecordedRequest): Boolean {
-        if (!recorded.method.equals(incoming.method, ignoreCase = true)) return false
+    override fun matches(recorded: RecordedRequest, incoming: RecordedRequest): Boolean = score(recorded, incoming) > 0
 
-        val method = incoming.method.uppercase()
-        when (method) {
-            "GET", "HEAD" -> {
-                // Exact match first
-                if (urlsMatch(recorded, incoming)) return true
-                // Fallback to path match
-                return PathMatcher().matches(recorded, incoming)
-            }
+    override fun score(recorded: RecordedRequest, incoming: RecordedRequest): Int {
+        if (!recorded.method.equals(incoming.method, ignoreCase = true)) return NONE
+
+        when (incoming.method.uppercase()) {
+            "GET", "HEAD" -> Unit
             "POST" -> {
                 val isPathAllowed = replayPostPaths.any { path ->
                     incoming.path.equals(path, ignoreCase = true) || incoming.path.endsWith(path)
                 }
-                if (!isPathAllowed) return false
-
-                if (matchPostBodyHash) {
-                    if (recorded.bodySha256 != incoming.bodySha256) return false
-                }
-
-                if (urlsMatch(recorded, incoming)) return true
-                return PathMatcher().matches(recorded, incoming)
+                if (!isPathAllowed) return NONE
+                if (matchPostBodyHash && recorded.bodySha256 != incoming.bodySha256) return NONE
             }
-            else -> {
-                // PUT, DELETE, PATCH, etc. are not replayed by default
-                return false
-            }
+            // PUT, DELETE, PATCH, etc. are not replayed
+            else -> return NONE
         }
+
+        if (urlsMatch(recorded, incoming)) return EXACT
+        return if (PATH_MATCHER.matches(recorded, incoming)) PATH else NONE
     }
 
     private fun urlsMatch(recorded: RecordedRequest, incoming: RecordedRequest): Boolean {
@@ -80,5 +83,13 @@ class CompositeRequestMatcher(
             !ignoredQueryParams.contains(key)
         }
         return if (filteredParams.isEmpty()) baseUrl else "$baseUrl?${filteredParams.joinToString("&")}"
+    }
+
+    companion object {
+        const val NONE = 0
+        const val PATH = 1
+        const val EXACT = 2
+
+        private val PATH_MATCHER = PathMatcher()
     }
 }

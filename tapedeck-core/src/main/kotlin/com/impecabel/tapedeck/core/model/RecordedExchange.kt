@@ -19,10 +19,15 @@ data class RecordedRequest(
     val headers: Map<String, List<String>> = emptyMap(),
     val body: ByteArray? = null
 ) {
+    /** Throws for URLs that [URI] rejects (e.g. a `|` or `{` in the query, which OkHttp sends unencoded): see [host]. */
     val uri: URI by lazy { URI.create(url) }
-    val host: String get() = uri.host ?: ""
-    val path: String get() = uri.path ?: "/"
-    val query: String? get() = uri.query
+
+    // Parsed by hand rather than with URI, which rejects characters OkHttp leaves unencoded in queries. The path stays as
+    // sent (percent-encoded), on both sides of a match
+    private val parts: UrlParts by lazy { UrlParts.parse(url) }
+    val host: String get() = parts.host
+    val path: String get() = parts.path
+    val query: String? get() = parts.query
 
     val bodySha256: String? by lazy {
         body?.let { bytes ->
@@ -51,6 +56,32 @@ data class RecordedRequest(
         result = 31 * result + (body?.contentHashCode() ?: 0)
         return result
     }
+}
+
+internal class UrlParts(val host: String, val path: String, val query: String?) {
+    companion object {
+        fun parse(url: String): UrlParts {
+            val afterScheme = url.substringAfter("://", url)
+            val authorityEnd = afterScheme.indexOfAny(charArrayOf('/', '?', '#')).let { if (it == -1) afterScheme.length else it }
+            val authority = afterScheme.substring(0, authorityEnd).substringAfterLast('@')
+            val host = if (authority.startsWith("[")) {
+                authority.substringBefore(']') + "]"
+            } else {
+                authority.substringBefore(':')
+            }
+            val rest = afterScheme.substring(authorityEnd).substringBefore('#')
+            val path = rest.substringBefore('?').ifEmpty { "/" }
+            val query = if ('?' in rest) rest.substringAfter('?') else null
+            return UrlParts(host.lowercase(), path, query)
+        }
+    }
+}
+
+// Request and response bodies with these content types are stored in HAR as text, the others base64-encoded
+internal fun isTextMimeType(mimeType: String): Boolean {
+    val type = mimeType.lowercase()
+    return type.startsWith("text/") || "json" in type || "xml" in type || "javascript" in type ||
+        "x-www-form-urlencoded" in type
 }
 
 data class RecordedResponse(
@@ -91,7 +122,8 @@ fun RecordedExchange.toHarEntry(): HarEntry {
     }
     val contentTypeReq = request.headers.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value?.firstOrNull() ?: "application/octet-stream"
     val postData = request.body?.let { bodyBytes ->
-        val isText = contentTypeReq.contains("json") || contentTypeReq.contains("text") || contentTypeReq.contains("xml")
+        // HAR's postData has no encoding field: whether the text is base64 follows from the MIME type, both ways
+        val isText = isTextMimeType(contentTypeReq)
         HarPostData(
             mimeType = contentTypeReq,
             text = if (isText) String(bodyBytes, Charsets.UTF_8) else Base64.getEncoder().encodeToString(bodyBytes)
@@ -102,7 +134,7 @@ fun RecordedExchange.toHarEntry(): HarEntry {
         vals.map { HarHeader(k, it) }
     }
     val contentTypeResp = response.headers.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value?.firstOrNull() ?: "application/octet-stream"
-    val isRespText = contentTypeResp.contains("json") || contentTypeResp.contains("text") || contentTypeResp.contains("xml") || contentTypeResp.contains("javascript")
+    val isRespText = isTextMimeType(contentTypeResp)
     val content = HarContent(
         size = response.body?.size?.toLong() ?: 0L,
         mimeType = contentTypeResp,
@@ -135,7 +167,7 @@ fun RecordedExchange.toHarEntry(): HarEntry {
 fun HarEntry.toRecordedExchange(): RecordedExchange {
     val reqHeaders = request.headers.groupBy({ it.name }, { it.value })
     val reqBody = request.postData?.text?.let { txt ->
-        if (request.postData.mimeType.contains("json") || request.postData.mimeType.contains("text")) {
+        if (isTextMimeType(request.postData.mimeType)) {
             txt.toByteArray(Charsets.UTF_8)
         } else {
             try {

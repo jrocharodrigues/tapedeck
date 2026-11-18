@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Merged into the benchmark (test) APK: the server listens on 127.0.0.1 and forwards to the real backend -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

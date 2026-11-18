@@ -41,3 +41,14 @@ class ReplayInterceptorNoopTest {
         assert(proceedCalled)
     }
 }
+
+// Compiles only while the no-op accepts every constructor argument of tapedeck-okhttp's ReplayInterceptor
+@Suppress("unused")
+private val sameConstructorAsTheRealInterceptor = ReplayInterceptor(
+    hosts = setOf("*.example.com"),
+    port = 28765,
+    fallbackToNetworkOnFailure = true,
+    enabled = true,
+    forwardPaths = setOf("/stream"),
+    alwaysForward = { false }
+)

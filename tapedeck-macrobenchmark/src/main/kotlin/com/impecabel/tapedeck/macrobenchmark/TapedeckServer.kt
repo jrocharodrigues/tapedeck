@@ -7,9 +7,14 @@ import com.impecabel.tapedeck.core.model.Recording
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import java.io.File
+import java.net.BindException
 import java.net.InetAddress
 import java.util.logging.Logger
 
+/**
+ * Tapedeck's server: MockWebServer on 127.0.0.1, on [port] ([Tapedeck.DEFAULT_PORT] by default, which the app's
+ * `ReplayInterceptor` uses too), or with 0 on a free port chosen when it starts (see [actualPort]).
+ */
 class TapedeckServer(
     val port: Int = Tapedeck.DEFAULT_PORT,
     val replayPost: List<String> = emptyList(),
@@ -18,7 +23,8 @@ class TapedeckServer(
     val onUnmatched: OnUnmatched = OnUnmatched.FORWARD,
     val matcher: RequestMatcher = CompositeRequestMatcher(replayPostPaths = replayPost.toSet()),
     val forwardingClient: OkHttpClient = OkHttpClient.Builder().build(),
-    val harOutputFile: File? = null
+    val harOutputFile: File? = null,
+    val followRedirects: Boolean = true
 ) {
     private val logger = Logger.getLogger("TapedeckServer")
     private var mockWebServer: MockWebServer? = null
@@ -32,7 +38,8 @@ class TapedeckServer(
         mode = TapedeckMode.RECORD,
         latencyMs = latencyMs,
         recordServerErrors = recordServerErrors,
-        onUnmatched = onUnmatched
+        onUnmatched = onUnmatched,
+        followRedirects = followRedirects
     )
 
     fun start() {
@@ -40,9 +47,17 @@ class TapedeckServer(
 
         val server = MockWebServer()
         server.dispatcher = dispatcher
-        server.start(InetAddress.getByName("127.0.0.1"), port)
+        try {
+            server.start(InetAddress.getByName("127.0.0.1"), port)
+        } catch (e: BindException) {
+            throw IllegalStateException(
+                "Tapedeck can't listen on 127.0.0.1:$port, already in use (another benchmark run, or a server left " +
+                    "running?). Free it, or pass another `port` to ReplayRule and the same `port` to ReplayInterceptor.",
+                e
+            )
+        }
         mockWebServer = server
-        logger.info("TapedeckServer started on 127.0.0.1:$port")
+        logger.info("TapedeckServer started on 127.0.0.1:${server.port}")
     }
 
     fun stop() {
@@ -61,6 +76,10 @@ class TapedeckServer(
             }
         }
     }
+
+    /** The port the server listens on; only while it runs. */
+    val actualPort: Int
+        get() = checkNotNull(mockWebServer) { "TapedeckServer isn't running" }.port
 
     var mode: TapedeckMode
         get() = dispatcher.mode

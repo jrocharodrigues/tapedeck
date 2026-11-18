@@ -10,17 +10,24 @@ java {
 
 kotlin {
     jvmToolchain(17)
+    // Readable by consumers on Kotlin 2.0+: metadata for 2.0, and a dependency on the 2.0 standard library
+    coreLibrariesVersion = libs.versions.kotlin.consumer.get()
+    compilerOptions {
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+    }
 }
 
 dependencies {
-    api(project(":tapedeck-core"))
+    // Only its constants are used: implementation keeps kotlinx-serialization off the app's compile classpath
+    implementation(project(":tapedeck-core"))
     api(libs.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
 }
 
 mavenPublishing {
-    coordinates("com.impecabel.tapedeck", "tapedeck-okhttp", "0.1.0")
+    coordinates("com.impecabel.tapedeck", "tapedeck-okhttp", "0.2.0")
 
     pom {
         name.set("Tapedeck OkHttp")

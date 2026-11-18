@@ -14,10 +14,21 @@ class Recording(
         _entries.add(exchange)
     }
 
+    /**
+     * The entry that best matches [incoming] across the whole recording (highest [RequestMatcher.score]), and the
+     * earliest recorded one among equally good matches; null when none matches.
+     */
     fun find(incoming: RecordedRequest, matcher: RequestMatcher): RecordedExchange? {
-        return _entries.firstOrNull { recorded ->
-            matcher.matches(recorded.request, incoming)
+        var best: RecordedExchange? = null
+        var bestScore = 0
+        for (recorded in _entries) {
+            val score = matcher.score(recorded.request, incoming)
+            if (score > bestScore) {
+                best = recorded
+                bestScore = score
+            }
         }
+        return best
     }
 
     fun size(): Int = _entries.size

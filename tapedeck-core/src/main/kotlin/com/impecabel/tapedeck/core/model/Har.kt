@@ -1,5 +1,6 @@
 package com.impecabel.tapedeck.core.model
 
+import com.impecabel.tapedeck.core.Tapedeck
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,7 +19,7 @@ data class HarLog(
 @Serializable
 data class HarCreator(
     val name: String = "Tapedeck",
-    val version: String = "0.1.0"
+    val version: String = Tapedeck.VERSION
 )
 
 @Serializable
