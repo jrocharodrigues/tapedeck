@@ -1,6 +1,7 @@
 # Tapedeck 📼
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI](https://github.com/jrocharodrigues/tapedeck/actions/workflows/ci.yml/badge.svg)](https://github.com/jrocharodrigues/tapedeck/actions)
 [![Maven Central](https://img.shields.io/maven-central/v/com.impecabel.tapedeck/tapedeck-core.svg)](https://search.maven.org/)
 
 **Deterministic HTTP record & replay for Android Macrobenchmark.**

@@ -25,7 +25,7 @@ mavenPublishing {
         name.set("Tapedeck Core")
         description.set("Core models, HAR 1.2 serializer, and request matchers for Tapedeck")
         inceptionYear.set("2026")
-        url.set("https://github.com/tapedeck/tapedeck")
+        url.set("https://github.com/jrocharodrigues/tapedeck")
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
@@ -35,15 +35,15 @@ mavenPublishing {
         }
         developers {
             developer {
-                id.set("tapedeck")
-                name.set("Tapedeck Contributors")
-                url.set("https://github.com/tapedeck/tapedeck")
+                id.set("jrocharodrigues")
+                name.set("José Rodrigues")
+                url.set("https://github.com/jrocharodrigues")
             }
         }
         scm {
-            url.set("https://github.com/tapedeck/tapedeck")
-            connection.set("scm:git:git://github.com/tapedeck/tapedeck.git")
-            developerConnection.set("scm:git:ssh://git@github.com/tapedeck/tapedeck.git")
+            url.set("https://github.com/jrocharodrigues/tapedeck")
+            connection.set("scm:git:git://github.com/jrocharodrigues/tapedeck.git")
+            developerConnection.set("scm:git:ssh://git@github.com/jrocharodrigues/tapedeck.git")
         }
     }
 }
