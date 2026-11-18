@@ -44,7 +44,7 @@ Tapedeck runs OkHttp's **MockWebServer** directly inside the **Macrobenchmark te
 1. **Warm-up Launch (`RECORD`)**: In iteration 0's setup block, `replay.recordOnce()` boots the app, intercepts network calls to allowed hosts, forwards them to the real backend, and records the responses into an in-memory HAR 1.2 cassette.
 2. **Measured Iterations (`REPLAY`)**: Subsequent cold starts hit the test process's local server, which immediately serves the recorded responses with deterministic latency (e.g., `50ms` or `0ms`).
 3. **`pm clear` Resilience**: Because the server and cassette reside in the test process (`com.example.app.benchmark`), **`pm clear` on the app never touches the test recording**.
-4. **Offline / Fallback Safety**: If the app is opened manually or running in a benchmark without Tapedeck active, nothing listens on the port: the connection to `127.0.0.1` is refused at once and `ReplayInterceptor` sends the request to the real backend (`fallbackToNetworkOnFailure`, on by default).
+4. **Offline / Fallback Safety**: If the app is opened manually or running in a benchmark without Tapedeck active, nothing listens on the port: the connection to `127.0.0.1` is refused at once and `ReplayInterceptor` sends the request to the real backend (`fallbackToNetworkOnFailure`, on by default). It does the same when the server is running but gets no response from the backend.
 
 ---
 
@@ -82,16 +82,16 @@ dependencyResolutionManagement {
 }
 ```
 
-JitPack serves the artifacts under its own group, `com.github.jrocharodrigues.tapedeck`, with the git tag as the version (`v0.2.0`).
+JitPack serves the artifacts under its own group, `com.github.jrocharodrigues.tapedeck`, with the git tag as the version (`v0.2.1`).
 
 Add dependencies to your app and benchmark modules:
 ```kotlin
 // App module (build.gradle.kts)
-benchmarkImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp:v0.2.0")
-releaseImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp-noop:v0.2.0")
+benchmarkImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp:v0.2.1")
+releaseImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp-noop:v0.2.1")
 
 // Macrobenchmark module (build.gradle.kts)
-implementation("com.github.jrocharodrigues.tapedeck:tapedeck-macrobenchmark:v0.2.0")
+implementation("com.github.jrocharodrigues.tapedeck:tapedeck-macrobenchmark:v0.2.1")
 ```
 
 Every build type of the app needs one of the two app-side artifacts (e.g. also `debugImplementation`), since the code
@@ -121,41 +121,49 @@ GitHub Packages needs a token with the `read:packages` scope, even for public pa
 coordinates the build publishes there:
 ```kotlin
 // App module (build.gradle.kts)
-benchmarkImplementation("com.impecabel.tapedeck:tapedeck-okhttp:0.2.0")
-releaseImplementation("com.impecabel.tapedeck:tapedeck-okhttp-noop:0.2.0")
+benchmarkImplementation("com.impecabel.tapedeck:tapedeck-okhttp:0.2.1")
+releaseImplementation("com.impecabel.tapedeck:tapedeck-okhttp-noop:0.2.1")
 
 // Macrobenchmark module (build.gradle.kts)
-implementation("com.impecabel.tapedeck:tapedeck-macrobenchmark:0.2.0")
+implementation("com.impecabel.tapedeck:tapedeck-macrobenchmark:0.2.1")
 ```
 
 ---
 
 ## Quickstart
 
-### 1. Configure Cleartext Traffic for Localhost
+### 1. Let the App Talk to the Server (Cleartext to `127.0.0.1`)
 
-In modern Android (API 28+), cleartext HTTP to localhost must be permitted for benchmark builds.
+This is about the **app under test**, in the build type the benchmark runs (e.g. `benchmark`), not the benchmark
+module: `ReplayInterceptor` sends the app's requests over plain HTTP to `127.0.0.1`, which apps targeting API 28+ may
+not do by default.
 
-Create `app/src/benchmark/res/xml/network_security_config.xml`:
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <domain includeSubdomains="false">localhost</domain>
-    </domain-config>
-</network-security-config>
-```
-
-And reference it in `app/src/benchmark/AndroidManifest.xml`:
-```xml
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-    <application
-        android:networkSecurityConfig="@xml/network_security_config"
-        tools:targetApi="24" />
-</manifest>
-```
+- **The app's network security config already permits cleartext globally** (`<base-config
+  cleartextTrafficPermitted="true">`): nothing to do.
+- **The app has no network security config:** create `app/src/benchmark/res/xml/network_security_config.xml`:
+  ```xml
+  <?xml version="1.0" encoding="utf-8"?>
+  <network-security-config>
+      <domain-config cleartextTrafficPermitted="true">
+          <domain includeSubdomains="false">127.0.0.1</domain>
+          <domain includeSubdomains="false">localhost</domain>
+      </domain-config>
+  </network-security-config>
+  ```
+  and reference it in `app/src/benchmark/AndroidManifest.xml`:
+  ```xml
+  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:tools="http://schemas.android.com/tools">
+      <application
+          android:networkSecurityConfig="@xml/network_security_config"
+          tools:targetApi="24" />
+  </manifest>
+  ```
+- **The app has its own network security config:** don't replace it. Setting `android:networkSecurityConfig` in the
+  benchmark source set replaces the app's *whole* config (its base-config cleartext, trust anchors, pinning), which can
+  break the requests the app still makes directly (`forwardPaths`, `alwaysForward`, the network fallback). Instead, add
+  the `127.0.0.1`/`localhost` `domain-config` above to a benchmark copy of the app's config (a file with the same name
+  in `app/src/benchmark/res/xml/` overrides the main one for that build type).
 
 ### 2. Add `ReplayInterceptor` to OkHttpClient
 
@@ -220,6 +228,23 @@ class StartupBenchmark {
     }
 }
 ```
+
+### The Benchmark (Test) APK Must Reach the Backend
+
+Tapedeck's server runs in the benchmark (test) APK and forwards the app's requests to the real backend (when
+recording, for unmatched requests in replay, and in passthrough), so the test APK must be able to reach every host the
+app uses, `http://` ones included. Out of the box it can: `tapedeck-macrobenchmark`'s manifest, merged into the test
+APK, sets the test APK's network security config to Tapedeck's own, which permits cleartext everywhere (replacing the
+one `androidx.benchmark` merges in, which permits it only to `localhost`, and with which `usesCleartextTraffic="true"`,
+also set, would be ignored).
+
+If the benchmark module sets its own `android:networkSecurityConfig`, it takes precedence, and must permit cleartext to
+those hosts (and to `localhost`, which `androidx.benchmark` needs for its trace processor), e.g.
+`<base-config cleartextTrafficPermitted="true" />`.
+
+Should the server still get no response from the backend (cleartext refused, host unreachable, ...), its 502 carries
+`X-Tapedeck-Forward-Failed: <reason>`, and `ReplayInterceptor` (with `fallbackToNetworkOnFailure`, the default) sends
+the request to the network itself, with the app's own network stack. Real backend errors (5xx) are returned as they are.
 
 ---
 

@@ -18,8 +18,11 @@ import java.util.logging.Logger
  *   `badexample.com`.
  * @param port the server's port: [Tapedeck.DEFAULT_PORT] unless `ReplayRule` is given another one, which must be the
  *   same here.
- * @param fallbackToNetworkOnFailure when the server isn't running (the app opened outside a benchmark, or the rule
- *   disabled), the connection to 127.0.0.1 is refused at once, and the request goes to the network instead of failing.
+ * @param fallbackToNetworkOnFailure sends the request to the network itself (with the app's own network stack: its
+ *   cleartext policy, proxy, pinning, DNS) instead of failing it when the server isn't running (the app opened outside
+ *   a benchmark, or the rule disabled: the connection to 127.0.0.1 is refused at once), or when the server got no
+ *   response from the backend (its 502 carries [Tapedeck.HEADER_FORWARD_FAILED]). Backend responses, 5xx included,
+ *   are returned as they are.
  * @param forwardPaths paths that always go straight to the network, even on [hosts]: a request matches when its
  *   (encoded) path equals one of them or continues it with `/`. For requests that must never be recorded or replayed and
  *   shouldn't pay the extra hop, e.g. streaming session control.
@@ -50,19 +53,27 @@ class ReplayInterceptor(
             return chain.proceed(request)
         }
 
-        return if (fallbackToNetworkOnFailure) {
-            try {
-                chain.proceed(rewrite(request, port))
-            } catch (e: ConnectException) {
-                logger.log(
-                    Level.WARNING,
-                    "Tapedeck server not reachable at 127.0.0.1:$port. Falling back to real network for ${request.url}."
-                )
-                chain.proceed(request)
-            }
-        } else {
-            chain.proceed(rewrite(request, port))
+        if (!fallbackToNetworkOnFailure) {
+            return chain.proceed(rewrite(request, port))
         }
+
+        val response = try {
+            chain.proceed(rewrite(request, port))
+        } catch (e: ConnectException) {
+            logger.log(
+                Level.WARNING,
+                "Tapedeck server not reachable at 127.0.0.1:$port. Falling back to real network for ${request.url}."
+            )
+            return chain.proceed(request)
+        }
+
+        val forwardFailure = response.header(Tapedeck.HEADER_FORWARD_FAILED) ?: return response
+        response.close()
+        logger.log(
+            Level.WARNING,
+            "Tapedeck couldn't forward ${request.url} ($forwardFailure). Sending it to the real network directly."
+        )
+        return chain.proceed(request)
     }
 
     private fun rewrite(request: Request, serverPort: Int): Request {

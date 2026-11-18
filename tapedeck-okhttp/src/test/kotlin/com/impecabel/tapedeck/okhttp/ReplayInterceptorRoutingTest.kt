@@ -97,6 +97,49 @@ class ReplayInterceptorRoutingTest {
         assertTrue("fallback took $perRequestMs ms per request", perRequestMs < 100)
     }
 
+    private fun respond(response: () -> MockResponse) = object : okhttp3.mockwebserver.Dispatcher() {
+        override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest) = response()
+    }
+
+    private fun call(interceptor: ReplayInterceptor, path: String): Pair<Int, String> {
+        val client = OkHttpClient.Builder().addInterceptor(interceptor).build()
+        val url = backend.url(path).newBuilder().host("localhost").build()
+        return client.newCall(Request.Builder().url(url).build()).execute().use { it.code to it.body!!.string() }
+    }
+
+    @Test
+    fun `falls back to the network when the server couldn't forward the request`() {
+        tapedeck.dispatcher = respond {
+            MockResponse().setResponseCode(502)
+                .setHeader(com.impecabel.tapedeck.core.Tapedeck.HEADER_FORWARD_FAILED, "UnknownServiceException: CLEARTEXT")
+                .setBody("Tapedeck Bad Gateway")
+        }
+
+        assertEquals(200 to "backend", call(ReplayInterceptor(hosts = setOf("localhost"), port = tapedeck.port), "/img"))
+        assertEquals(1, tapedeck.requestCount)
+        assertEquals(1, backend.requestCount)
+    }
+
+    @Test
+    fun `a backend 5xx served by the server is returned as it is`() {
+        tapedeck.dispatcher = respond { MockResponse().setResponseCode(502).setBody("backend 502") }
+
+        assertEquals(502 to "backend 502", call(ReplayInterceptor(hosts = setOf("localhost"), port = tapedeck.port), "/x"))
+        assertEquals(0, backend.requestCount)
+    }
+
+    @Test
+    fun `without fallbackToNetworkOnFailure a forward failure reaches the app`() {
+        tapedeck.dispatcher = respond {
+            MockResponse().setResponseCode(502).setHeader(com.impecabel.tapedeck.core.Tapedeck.HEADER_FORWARD_FAILED, "x")
+        }
+        val interceptor =
+            ReplayInterceptor(hosts = setOf("localhost"), port = tapedeck.port, fallbackToNetworkOnFailure = false)
+
+        assertEquals(502, call(interceptor, "/x").first)
+        assertEquals(0, backend.requestCount)
+    }
+
     @Test
     fun `the default port is Tapedeck's default port`() {
         assertEquals(com.impecabel.tapedeck.core.Tapedeck.DEFAULT_PORT, ReplayInterceptor(hosts = setOf("x")).port)

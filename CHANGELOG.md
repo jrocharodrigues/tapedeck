@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.1
+
+### Fixed
+- The app's `http://` requests couldn't be forwarded (`CLEARTEXT communication … not permitted by network security
+  policy`): the server runs in the test APK, which targets API 28+ and whose network security config, merged in by
+  `androidx.benchmark`, permits cleartext only to `localhost`. `tapedeck-macrobenchmark`'s manifest now replaces it
+  with a config that permits cleartext everywhere (and sets `usesCleartextTraffic="true"`). A network security config
+  set by the benchmark module itself still takes precedence (see README).
+- A request the server couldn't forward (no response from the backend) reached the app as Tapedeck's 502. The 502 now
+  carries `X-Tapedeck-Forward-Failed: <reason>`, and `ReplayInterceptor` (with `fallbackToNetworkOnFailure`, the
+  default) then sends the request to the network itself. Backend responses, 5xx included, are still returned as they
+  are.
+- README: Quickstart step 1 is about the app's benchmark build type, and no longer suggests replacing an app's own
+  network security config; new section on what the test APK needs to reach the backend.
+
 ## 0.2.0
 
 ### Fixed

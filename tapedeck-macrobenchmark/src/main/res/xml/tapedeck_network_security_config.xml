@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The benchmark (test) APK's network security config, replacing androidx.benchmark's (cleartext to localhost only, for
+     its Perfetto trace processor). Tapedeck's server forwards whatever the app sends, http:// included, so cleartext is
+     permitted everywhere, localhost too. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

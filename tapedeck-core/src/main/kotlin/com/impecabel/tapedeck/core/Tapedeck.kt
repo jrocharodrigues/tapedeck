@@ -12,6 +12,13 @@ object Tapedeck {
     const val HEADER_ORIGINAL_HOST = "X-Tapedeck-Original-Host"
 
     /**
+     * Set by the server on its 502 when forwarding a request got no response from the backend (e.g. it couldn't connect,
+     * or the test APK's network security policy refused it), with the reason. `ReplayInterceptor` then sends the request
+     * to the network itself. Real backend responses, 5xx included, never carry it.
+     */
+    const val HEADER_FORWARD_FAILED = "X-Tapedeck-Forward-Failed"
+
+    /**
      * Path on Tapedeck's server that redirect targets are served through when the rule doesn't follow redirects: the
      * real target is in [REDIRECT_URL_PARAMETER], and the redirecting request's host in [REDIRECT_FROM_PARAMETER].
      */
@@ -19,5 +26,5 @@ object Tapedeck {
     const val REDIRECT_URL_PARAMETER = "url"
     const val REDIRECT_FROM_PARAMETER = "from"
 
-    const val VERSION = "0.2.0"
+    const val VERSION = "0.2.1"
 }

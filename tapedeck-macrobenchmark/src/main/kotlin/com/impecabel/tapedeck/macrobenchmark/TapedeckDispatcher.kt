@@ -155,6 +155,8 @@ class TapedeckDispatcher(
         forwarded.response?.let { serve(it, incoming, serverUrl) }
             ?: MockResponse()
                 .setResponseCode(502)
+                // The app's ReplayInterceptor sends the request to the network itself on this marker
+                .setHeader(Tapedeck.HEADER_FORWARD_FAILED, forwardFailureReason(forwarded.error))
                 .setBody("Tapedeck Bad Gateway: ${forwarded.error?.message}")
 
     /** [response] as served to the app: a redirect's Location points back at this server (see [followRedirects]). */
@@ -232,6 +234,12 @@ class TapedeckDispatcher(
     }
 
     companion object {
+        /** [error] as a header value: printable ASCII only, and short. */
+        internal fun forwardFailureReason(error: Exception?): String {
+            val reason = error?.let { listOfNotNull(it.javaClass.simpleName, it.message).joinToString(": ") } ?: "unknown"
+            return reason.map { if (it in ' '..'~') it else '?' }.joinToString("").take(200)
+        }
+
         private val METHODS_WITH_BODY = setOf("POST", "PUT", "PATCH")
 
         // Hop-by-hop headers (RFC 9110 7.6.1) and the ones OkHttp sets itself. Accept-Encoding in particular: forwarded,

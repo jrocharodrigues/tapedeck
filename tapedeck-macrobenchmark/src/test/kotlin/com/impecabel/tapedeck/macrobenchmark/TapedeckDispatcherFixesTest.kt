@@ -129,9 +129,51 @@ class TapedeckDispatcherFixesTest {
         ).execute()
 
         assertEquals(502, resp.code)
+        assertTrue(resp.header(Tapedeck.HEADER_FORWARD_FAILED)!!.startsWith("ConnectException"))
         resp.close()
         assertEquals(0, dispatcher.recording.size())
         assertEquals(0, dispatcher.recordedCount.get())
+    }
+
+    private fun forwardFailureHeader(mode: TapedeckMode): String? {
+        dispatcher.mode = mode
+        val url = backend.url("/down")
+        backend.shutdown()
+        return appClient.newCall(
+            Request.Builder().url(tapedeck.url("/down")).header(Tapedeck.HEADER_ORIGINAL_URL, url.toString()).build()
+        ).execute().use { assertEquals(502, it.code); it.header(Tapedeck.HEADER_FORWARD_FAILED) }
+    }
+
+    @Test
+    fun `an unmatched request that can't be forwarded in replay carries the forward-failed marker`() {
+        assertTrue(forwardFailureHeader(TapedeckMode.REPLAY)!!.startsWith("ConnectException"))
+        assertEquals(1, dispatcher.unmatchedCount.get())
+    }
+
+    @Test
+    fun `a request that can't be forwarded in passthrough carries the forward-failed marker`() {
+        assertTrue(forwardFailureHeader(TapedeckMode.PASSTHROUGH)!!.startsWith("ConnectException"))
+    }
+
+    @Test
+    fun `a backend 502 doesn't carry the forward-failed marker`() {
+        backend.enqueue(MockResponse().setResponseCode(502).setBody("down"))
+
+        call("/bad").use {
+            assertEquals(502, it.code)
+            assertNull(it.header(Tapedeck.HEADER_FORWARD_FAILED))
+        }
+    }
+
+    @Test
+    fun `the forward failure reason is a short printable header value`() {
+        val reason = TapedeckDispatcher.forwardFailureReason(
+            java.net.UnknownServiceException("CLEARTEXT communication to hôst\n not permitted " + "x".repeat(300))
+        )
+        assertTrue(reason.startsWith("UnknownServiceException: CLEARTEXT communication to h?st"))
+        assertTrue(reason.all { it in ' '..'~' })
+        assertEquals(200, reason.length)
+        assertEquals("unknown", TapedeckDispatcher.forwardFailureReason(null))
     }
 
     @Test
