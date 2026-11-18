@@ -1,7 +1,7 @@
 # Tapedeck 📼
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.tapedeck/tapedeck-core.svg)](https://search.maven.org/)
+[![Maven Central](https://img.shields.io/maven-central/v/com.impecabel.tapedeck/tapedeck-core.svg)](https://search.maven.org/)
 
 **Deterministic HTTP record & replay for Android Macrobenchmark.**
 
@@ -66,17 +66,17 @@ In your app's `build.gradle.kts`:
 ```kotlin
 dependencies {
     // Benchmark builds use the active interceptor
-    benchmarkImplementation("io.github.tapedeck:tapedeck-okhttp:0.1.0")
+    benchmarkImplementation("com.impecabel.tapedeck:tapedeck-okhttp:0.1.0")
 
     // Release builds use the no-op implementation
-    releaseImplementation("io.github.tapedeck:tapedeck-okhttp-noop:0.1.0")
+    releaseImplementation("com.impecabel.tapedeck:tapedeck-okhttp-noop:0.1.0")
 }
 ```
 
 In your macrobenchmark module's `build.gradle.kts`:
 ```kotlin
 dependencies {
-    implementation("io.github.tapedeck:tapedeck-macrobenchmark:0.1.0")
+    implementation("com.impecabel.tapedeck:tapedeck-macrobenchmark:0.1.0")
 }
 ```
 

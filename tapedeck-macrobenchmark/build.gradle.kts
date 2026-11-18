@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.tapedeck.macrobenchmark"
+    namespace = "com.impecabel.tapedeck.macrobenchmark"
     compileSdk = 35
 
     defaultConfig {
@@ -49,7 +49,7 @@ dependencies {
 }
 
 mavenPublishing {
-    coordinates("io.github.tapedeck", "tapedeck-macrobenchmark", "0.1.0")
+    coordinates("com.impecabel.tapedeck", "tapedeck-macrobenchmark", "0.1.0")
 
     pom {
         name.set("Tapedeck Macrobenchmark")

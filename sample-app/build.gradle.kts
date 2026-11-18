@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "io.github.tapedeck.sample"
+    namespace = "com.impecabel.tapedeck.sample"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.github.tapedeck.sample"
+        applicationId = "com.impecabel.tapedeck.sample"
         minSdk = 23
         targetSdk = 35
         versionCode = 1

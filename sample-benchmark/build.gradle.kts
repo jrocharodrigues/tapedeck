@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "io.github.tapedeck.sample.benchmark"
+    namespace = "com.impecabel.tapedeck.sample.benchmark"
     compileSdk = 35
 
     defaultConfig {
