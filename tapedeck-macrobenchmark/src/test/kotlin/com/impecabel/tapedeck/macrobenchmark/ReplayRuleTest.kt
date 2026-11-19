@@ -2,6 +2,7 @@ package com.impecabel.tapedeck.macrobenchmark
 
 import com.impecabel.tapedeck.core.Tapedeck
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -13,7 +14,7 @@ import java.net.ServerSocket
 import java.net.Socket
 
 // None of these depend on Tapedeck.DEFAULT_PORT being free: they use port 0 or a free port
-class ReplayRulePortTest {
+class ReplayRuleTest {
 
     private fun ReplayRule.run(body: () -> Unit) = apply(object : Statement() {
         override fun evaluate() = body()
@@ -66,6 +67,38 @@ class ReplayRulePortTest {
             val message = failure!!.message!!
             assertTrue(message, "127.0.0.1:${taken.localPort}" in message)
             assertTrue(message, "`port`" in message)
+        }
+    }
+
+    @Test
+    fun `a disabled rule neither starts the server nor records`() {
+        val port = freePort()
+        val rule = ReplayRule(port = port, enabled = false)
+        var ran = false
+        var recorded = false
+
+        rule.run {
+            ran = true
+            assertFalse(isListening(port))
+            rule.recordOnce(onComplete = {}) { recorded = true }
+        }
+
+        assertTrue(ran)
+        assertFalse(recorded)
+    }
+
+    @Test
+    fun `recordOnce records on the first call, then switches to replay and does nothing more`() {
+        val rule = ReplayRule(port = 0)
+        var calls = 0
+
+        rule.run {
+            rule.recordOnce(onComplete = {}) { calls++ }
+            assertEquals(1, calls)
+            assertEquals(TapedeckMode.REPLAY, rule.server.mode)
+
+            rule.recordOnce(onComplete = {}) { calls++ }
+            assertEquals(1, calls)
         }
     }
 
