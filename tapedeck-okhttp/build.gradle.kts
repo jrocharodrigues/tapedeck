@@ -27,7 +27,7 @@ dependencies {
 }
 
 mavenPublishing {
-    coordinates("com.impecabel.tapedeck", "tapedeck-okhttp", "0.2.2")
+    coordinates("com.impecabel.tapedeck", "tapedeck-okhttp", "0.2.3")
 
     pom {
         name.set("Tapedeck OkHttp")

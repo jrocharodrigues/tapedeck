@@ -54,11 +54,11 @@ Then add the dependencies:
 
 ```kotlin
 // App module
-benchmarkImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp:v0.2.2")
-releaseImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp-noop:v0.2.2")
+benchmarkImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp:v0.2.3")
+releaseImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp-noop:v0.2.3")
 
 // Macrobenchmark module
-implementation("com.github.jrocharodrigues.tapedeck:tapedeck-macrobenchmark:v0.2.2")
+implementation("com.github.jrocharodrigues.tapedeck:tapedeck-macrobenchmark:v0.2.3")
 ```
 
 Every build type of the app needs one of the two app-side artifacts, because the code that installs the interceptor

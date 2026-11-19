@@ -33,5 +33,5 @@ object Tapedeck {
     const val REDIRECT_URL_PARAMETER = "url"
     const val REDIRECT_FROM_PARAMETER = "from"
 
-    const val VERSION = "0.2.2"
+    const val VERSION = "0.2.3"
 }

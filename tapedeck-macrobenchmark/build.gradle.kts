@@ -57,7 +57,7 @@ dependencies {
 }
 
 mavenPublishing {
-    coordinates("com.impecabel.tapedeck", "tapedeck-macrobenchmark", "0.2.2")
+    coordinates("com.impecabel.tapedeck", "tapedeck-macrobenchmark", "0.2.3")
 
     pom {
         name.set("Tapedeck Macrobenchmark")

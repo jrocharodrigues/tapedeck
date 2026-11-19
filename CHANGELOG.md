@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.3
 
 ### Fixed
 - A response served by Tapedeck carried the server's `127.0.0.1` URL in `response.request`, which clients read as the

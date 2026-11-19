@@ -25,7 +25,7 @@ dependencies {
 }
 
 mavenPublishing {
-    coordinates("com.impecabel.tapedeck", "tapedeck-core", "0.2.2")
+    coordinates("com.impecabel.tapedeck", "tapedeck-core", "0.2.3")
 
     pom {
         name.set("Tapedeck Core")
