@@ -14,7 +14,8 @@ class ReplayInterceptor(
     val fallbackToNetworkOnFailure: Boolean = true,
     enabled: Boolean = false,
     val forwardPaths: Set<String> = emptySet(),
-    val alwaysForward: (Request) -> Boolean = { false }
+    val alwaysForward: (Request) -> Boolean = { false },
+    val bypassHttpCache: Boolean = false
 ) : Interceptor {
 
     // Accepted for API compatibility; never routes anything

@@ -15,7 +15,8 @@ import java.util.logging.Logger
  *
  * @param hosts host names to send to Tapedeck, compared ignoring case. `*.example.com` matches any subdomain of
  *   example.com (`api.example.com`, `a.b.example.com`), but not example.com itself (list it too if needed) nor
- *   `badexample.com`.
+ *   `badexample.com`. `*` matches every host except loopback ones (`localhost`, `127.0.0.0/8`, `::1`), which are never
+ *   sent to Tapedeck through it (e.g. a local video proxy); list a loopback host explicitly to send it anyway.
  * @param port the server's port: [Tapedeck.DEFAULT_PORT] unless `ReplayRule` is given another one, which must be the
  *   same here.
  * @param fallbackToNetworkOnFailure sends the request to the network itself (with the app's own network stack: its
@@ -27,6 +28,11 @@ import java.util.logging.Logger
  *   (encoded) path equals one of them or continues it with `/`. For requests that must never be recorded or replayed and
  *   shouldn't pay the extra hop, e.g. streaming session control.
  * @param alwaysForward any other requests that always go straight to the network.
+ * @param bypassHttpCache keeps the requests sent to Tapedeck out of the client's HTTP cache (OkHttp's `Cache`): they're
+ *   neither answered from it nor stored in it, whatever cache headers the responses carry, and the backend still sees
+ *   the request's own `Cache-Control`. With `false` (the default), replayed responses are cached like real ones, so a
+ *   benchmark includes the cost of the cache. Requests sent to the network directly (forwarded, or the fallback) always
+ *   use the cache.
  */
 class ReplayInterceptor(
     val hosts: Set<String>,
@@ -34,7 +40,8 @@ class ReplayInterceptor(
     val fallbackToNetworkOnFailure: Boolean = true,
     enabled: Boolean = true,
     val forwardPaths: Set<String> = emptySet(),
-    val alwaysForward: (Request) -> Boolean = { false }
+    val alwaysForward: (Request) -> Boolean = { false },
+    val bypassHttpCache: Boolean = false
 ) : Interceptor {
 
     @Volatile
@@ -83,12 +90,19 @@ class ReplayInterceptor(
             .port(serverPort)
             .build()
 
-        return request.newBuilder()
+        val builder = request.newBuilder()
             .url(rewrittenUrl)
             .header(Tapedeck.HEADER_ORIGINAL_URL, request.url.toString())
             .header(Tapedeck.HEADER_ORIGINAL_SCHEME, request.url.scheme)
             .header(Tapedeck.HEADER_ORIGINAL_HOST, request.url.host)
-            .build()
+        if (bypassHttpCache) {
+            // OkHttp's cache neither serves a no-cache request nor stores the response to a no-store one, even when a
+            // network interceptor rewrites the response's cache headers
+            builder
+                .header(Tapedeck.HEADER_ORIGINAL_CACHE_CONTROL, request.headers.values("Cache-Control").joinToString(", "))
+                .header("Cache-Control", NO_CACHE)
+        }
+        return builder.build()
     }
 
     private fun isHostAllowed(host: String): Boolean = hosts.any { allowed -> hostMatches(allowed, host) }
@@ -99,12 +113,24 @@ class ReplayInterceptor(
     }
 
     internal companion object {
+        private const val NO_CACHE = "no-cache, no-store"
+
         fun hostMatches(allowed: String, host: String): Boolean {
+            if (allowed == "*") return !isLoopback(host)
             if (allowed.startsWith("*.")) {
                 // The dot keeps "*.example.com" from matching "badexample.com"
                 return host.endsWith(allowed.substring(1), ignoreCase = true)
             }
             return host.equals(allowed, ignoreCase = true)
+        }
+
+        /** `localhost` (and its subdomains), `127.0.0.0/8` and `::1`, as OkHttp gives a URL's host (IPv6 canonical). */
+        fun isLoopback(host: String): Boolean {
+            val name = host.lowercase().removeSuffix(".")
+            if (name == "localhost" || name.endsWith(".localhost")) return true
+            if (name == "::1" || name == "[::1]") return true
+            val octets = name.split('.')
+            return octets.size == 4 && octets[0] == "127" && octets.all { it.toIntOrNull() in 0..255 }
         }
     }
 }

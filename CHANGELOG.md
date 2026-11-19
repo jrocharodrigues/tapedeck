@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.2
+
+### Added
+- `ReplayInterceptor(bypassHttpCache = true)`: requests sent to Tapedeck are neither served from nor stored in the
+  app's OkHttp cache, whatever cache headers the responses carry. Off by default, so replayed responses are cached like
+  real ones.
+- `ReplayInterceptor(hosts = setOf("*"))`: every host except loopback ones (`localhost`, `127.0.0.0/8`, `::1`), which
+  are never sent to Tapedeck through `*` (e.g. a local video proxy).
+
+### Fixed
+- 0.2.1 failed the benchmark module's manifest merge (`Attribute application@networkSecurityConfig … is also present
+  at [androidx.benchmark:benchmark-common]`): two libraries can't both set it. `tapedeck-macrobenchmark` no longer sets
+  it; it ships `@xml/tapedeck_network_security_config` (cleartext permitted everywhere), which the benchmark module
+  selects in its own manifest (README, Setup step 3, now required).
+- Replayed responses took longer than `latencyMs` on low-end devices while the app was starting: the server's threads,
+  in the test process at default priority, waited for a core before reading each request and writing each response.
+  They now run at display priority, and MockWebServer no longer logs every request.
+
+### Changed
+- README rewritten: setup steps in order, configuration tables, and JitPack as the only repository.
+
 ## 0.2.1
 
 ### Fixed

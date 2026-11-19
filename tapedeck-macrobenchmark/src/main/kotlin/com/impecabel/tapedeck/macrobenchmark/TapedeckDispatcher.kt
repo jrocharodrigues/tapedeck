@@ -61,6 +61,9 @@ class TapedeckDispatcher(
     val unmatchedCount = AtomicInteger(0)
 
     override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+        // MockWebServer handles each connection on a thread of its own, which then reads and answers all of that
+        // connection's requests: raised on its first request, it stays raised for the following ones
+        ServerThreadPriority.raiseCurrentThread()
         val serverUrl = request.requestUrl
         // A redirect hop sent back here (see followRedirects): its target is in the URL, not in the header, which still
         // holds the first request's URL
@@ -72,6 +75,12 @@ class TapedeckDispatcher(
             ?: "http://127.0.0.1"
 
         var headers = request.headers.toMultimap()
+        val originalCacheControl = request.getHeader(Tapedeck.HEADER_ORIGINAL_CACHE_CONTROL)
+        if (originalCacheControl != null) {
+            // The app's ReplayInterceptor replaced it to bypass the app's HTTP cache: record and forward the request's own
+            headers = headers.filterKeys { !it.equals("Cache-Control", ignoreCase = true) }
+            if (originalCacheControl.isNotEmpty()) headers = headers + ("Cache-Control" to listOf(originalCacheControl))
+        }
         if (redirectTarget != null) {
             // Like OkHttp following a redirect: no credentials to another host
             val fromHost = serverUrl?.queryParameter(Tapedeck.REDIRECT_FROM_PARAMETER)

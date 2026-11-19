@@ -210,4 +210,38 @@ class TapedeckDispatcherFixesTest {
         assertTrue(listening)
         assertTrue(runCatching { Socket("127.0.0.1", port).close() }.exceptionOrNull() is ConnectException)
     }
+
+    private fun forwardWithCacheHeaders(vararg headers: Pair<String, String>): okhttp3.mockwebserver.RecordedRequest {
+        backend.enqueue(MockResponse().setBody("ok"))
+        val request = Request.Builder()
+            .url(tapedeck.url("/cc"))
+            .header(Tapedeck.HEADER_ORIGINAL_URL, backend.url("/cc").toString())
+            .apply { headers.forEach { (name, value) -> header(name, value) } }
+            .build()
+        appClient.newCall(request).execute().close()
+        return backend.takeRequest()
+    }
+
+    @Test
+    fun `bypassed cache headers are restored before forwarding`() {
+        val withoutOwn = forwardWithCacheHeaders(
+            "Cache-Control" to "no-cache, no-store",
+            Tapedeck.HEADER_ORIGINAL_CACHE_CONTROL to "",
+        )
+        assertNull(withoutOwn.getHeader("Cache-Control"))
+        assertNull(withoutOwn.getHeader(Tapedeck.HEADER_ORIGINAL_CACHE_CONTROL))
+
+        val withOwn = forwardWithCacheHeaders(
+            "Cache-Control" to "no-cache, no-store",
+            Tapedeck.HEADER_ORIGINAL_CACHE_CONTROL to "max-age=0",
+        )
+        assertEquals("max-age=0", withOwn.getHeader("Cache-Control"))
+        assertEquals("max-age=0", dispatcher.recording.entries.last().request.headers.entries
+            .first { it.key.equals("Cache-Control", ignoreCase = true) }.value.single())
+    }
+
+    @Test
+    fun `Cache-Control is forwarded unchanged when the cache wasn't bypassed`() {
+        assertEquals("max-age=0", forwardWithCacheHeaders("Cache-Control" to "max-age=0").getHeader("Cache-Control"))
+    }
 }

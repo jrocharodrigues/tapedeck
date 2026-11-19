@@ -9,6 +9,7 @@ import okhttp3.mockwebserver.MockWebServer
 import java.io.File
 import java.net.BindException
 import java.net.InetAddress
+import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
@@ -29,6 +30,9 @@ class TapedeckServer(
     private val logger = Logger.getLogger("TapedeckServer")
     private var mockWebServer: MockWebServer? = null
 
+    // Held so the level set on it isn't lost if the logger is garbage-collected (LogManager only keeps weak references)
+    private val mockWebServerLogger = Logger.getLogger(MockWebServer::class.java.name)
+
     val recording = Recording()
 
     val dispatcher = TapedeckDispatcher(
@@ -45,6 +49,8 @@ class TapedeckServer(
     fun start() {
         if (mockWebServer != null) return
 
+        // MockWebServer logs every request at INFO, on the thread serving it; the report summarises them instead
+        mockWebServerLogger.level = Level.WARNING
         val server = MockWebServer()
         server.dispatcher = dispatcher
         try {

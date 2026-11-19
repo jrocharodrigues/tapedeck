@@ -1,148 +1,107 @@
-# Tapedeck 📼
+# Tapedeck
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/jrocharodrigues/tapedeck/actions/workflows/ci.yml/badge.svg)](https://github.com/jrocharodrigues/tapedeck/actions)
 [![JitPack](https://jitpack.io/v/jrocharodrigues/tapedeck.svg)](https://jitpack.io/#jrocharodrigues/tapedeck)
 
-**Deterministic HTTP record & replay for Android Macrobenchmark.**
+HTTP record and replay for Android Macrobenchmark.
 
-Startup benchmarks (Time To Initial Display / Time To Full Display) of apps that load their first screen from a backend measure backend variance as much as the app itself:
-* Backend latency drifts throughout the day by hundreds of milliseconds.
-* Occasional backend errors (502/504) fail whole benchmark runs.
-* Comparing two builds run an hour apart compares two different backends.
+Startup benchmarks of apps that load their first screen from a backend measure the backend as much as the app:
+response times drift through the day, intermittent 5xx errors fail runs, and two builds measured an hour apart are
+measured against two different backends. Tapedeck records the backend's responses once, in a warm-up launch, and
+replays them with a fixed latency in every measured iteration, so results depend on the app alone.
 
-**Tapedeck** eliminates backend noise by recording backend responses **once** during warm-up and replaying them deterministically with fixed (or zero) simulated latency across all measured iterations.
+- Runs inside the Macrobenchmark test process, so recordings survive `am force-stop` and `pm clear` of the app.
+- No proxy, no custom CA, no checked-in fixtures: recordings are taken from the live backend on each run.
+- Requests that must stay live (streaming sessions, writes) go straight to the network.
+- Recordings can be exported as HAR 1.2.
+- Release builds use a no-op artifact with the same API.
 
----
-
-## Why Existing Tools Don't Fit Macrobenchmark
-
-| Tool | Why it doesn't fit |
-|---|---|
-| **OkReplay (Airbnb)** | Built for single-process Espresso tests. In Macrobenchmark, the app runs in a **separate process**, repeatedly killed (`am force-stop`) and cleared (`pm clear`). |
-| **mitmproxy** | Requires proxying on the host machine and custom CA certificates, which release/benchmark builds reject. Adds latency hops and intercepts video streams. |
-| **Manual MockWebServer assets** | JSON response fixtures drift over time and require manual maintenance. |
-
----
-
-## How Tapedeck Works
-
-Tapedeck runs OkHttp's **MockWebServer** directly inside the **Macrobenchmark test process** on `127.0.0.1:28765` (`Tapedeck.DEFAULT_PORT`), the port `ReplayInterceptor` sends requests to.
+## How it works
 
 ```
- Macrobenchmark Test Process                         App Process (Benchmark Build)
- ┌──────────────────────────────────────┐            ┌──────────────────────────────┐
- │ MockWebServer @ 127.0.0.1:28765      │◄── http ───│ ReplayInterceptor            │
- │  Dispatcher:                         │            │  rewrites https://api.x/...  │
- │   RECORD → forwards to real backend  │            │  → http://127.0.0.1:28765/   │
- │            & saves to HAR cassette   │            │    + X-Tapedeck-Original-Url │
- │   REPLAY → serves stored response    │            │  (allow-listed hosts only)   │
- │            with simulated latency    │            └──────────────────────────────┘
- └──────────────────────────────────────┘
+ Benchmark (test) process                           App process (benchmark build)
+┌─────────────────────────────────────────┐        ┌───────────────────────────────────┐
+│ ReplayRule                              │        │ OkHttpClient                      │
+│  MockWebServer on 127.0.0.1:28765       │◄─http──│  ReplayInterceptor                │
+│   RECORD: forward to backend, record    │        │   https://api.example.com/v1/feed │
+│   REPLAY: serve recording, fixed delay  │        │   → http://127.0.0.1:28765/…      │
+└─────────────────────────────────────────┘        └───────────────────────────────────┘
 ```
 
-1. **Warm-up Launch (`RECORD`)**: In iteration 0's setup block, `replay.recordOnce()` boots the app, intercepts network calls to allowed hosts, forwards them to the real backend, and records the responses into an in-memory HAR 1.2 cassette.
-2. **Measured Iterations (`REPLAY`)**: Subsequent cold starts hit the test process's local server, which immediately serves the recorded responses with deterministic latency (e.g., `50ms` or `0ms`).
-3. **`pm clear` Resilience**: Because the server and cassette reside in the test process (`com.example.app.benchmark`), **`pm clear` on the app never touches the test recording**.
-4. **Offline / Fallback Safety**: If the app is opened manually or running in a benchmark without Tapedeck active, nothing listens on the port: the connection to `127.0.0.1` is refused at once and `ReplayInterceptor` sends the request to the real backend (`fallbackToNetworkOnFailure`, on by default). It does the same when the server is running but gets no response from the backend.
-
----
-
-## Modules
-
-| Artifact | Purpose |
-|---|---|
-| `tapedeck-okhttp` | App side: `ReplayInterceptor` for benchmark builds (URL rewriting & localhost routing). |
-| `tapedeck-okhttp-noop` | App side: Drop-in no-op `ReplayInterceptor` for release builds (0 overhead). |
-| `tapedeck-macrobenchmark` | Test side: `ReplayRule` (MockWebServer, forwarding dispatcher, record/replay, reports). |
-| `tapedeck-core` | Shared: HAR 1.2 parser/serializer, matchers, recorded models. |
-
----
+1. `ReplayInterceptor`, in the app, sends requests for the configured hosts to a local server instead of the network.
+2. `ReplayRule`, in the benchmark, runs that server. During the warm-up launch (`recordOnce`) it forwards requests to
+   the backend and records the responses; afterwards it serves them from the recording with a fixed latency.
+3. When no server is running (the app opened outside a benchmark, or the rule disabled), the connection to
+   `127.0.0.1` is refused immediately and the interceptor sends the request to the network.
 
 ## Installation
 
-Tapedeck is built with Kotlin 2.4 but compiled for **Kotlin 2.0+ consumers** (language and API version 2.0, and a
-dependency on the 2.0 standard library), with minSdk 23 and Java 17 bytecode.
+Tapedeck is distributed through [JitPack](https://jitpack.io/#jrocharodrigues/tapedeck). Add the repository in
+`settings.gradle.kts`:
 
-Artifacts are served by **JitPack** (no authentication) and **GitHub Packages** (needs a GitHub token). They are not on Maven Central.
-
-### Option 1: Via JitPack (no authentication required)
-
-Add JitPack to your `settings.gradle.kts`, restricted to Tapedeck's artifacts so it isn't searched for anything else:
 ```kotlin
 dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url = uri("https://jitpack.io")
-            content { includeGroupByRegex("com\\.github\\.jrocharodrigues.*") }
-        }
+        maven("https://jitpack.io")
     }
 }
 ```
 
-JitPack serves the artifacts under its own group, `com.github.jrocharodrigues.tapedeck`, with the git tag as the version (`v0.2.1`).
+Then add the dependencies:
 
-Add dependencies to your app and benchmark modules:
 ```kotlin
-// App module (build.gradle.kts)
-benchmarkImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp:v0.2.1")
-releaseImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp-noop:v0.2.1")
+// App module
+benchmarkImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp:v0.2.2")
+releaseImplementation("com.github.jrocharodrigues.tapedeck:tapedeck-okhttp-noop:v0.2.2")
 
-// Macrobenchmark module (build.gradle.kts)
-implementation("com.github.jrocharodrigues.tapedeck:tapedeck-macrobenchmark:v0.2.1")
+// Macrobenchmark module
+implementation("com.github.jrocharodrigues.tapedeck:tapedeck-macrobenchmark:v0.2.2")
 ```
 
-Every build type of the app needs one of the two app-side artifacts (e.g. also `debugImplementation`), since the code
-that adds `ReplayInterceptor` is shared. Alternatively, depend on `tapedeck-okhttp` in all build types and add the
-interceptor only when a benchmark-only `BuildConfig` flag is set: R8 then removes it from release builds.
+Every build type of the app needs one of the two app-side artifacts, because the code that installs the interceptor
+is shared. Alternatively, depend on `tapedeck-okhttp` in all build types and install the interceptor only behind a
+benchmark-only `BuildConfig` flag; R8 removes it from the other builds.
 
-### Option 2: Via GitHub Packages
+| Artifact | Side | Contents |
+|---|---|---|
+| `tapedeck-okhttp` | App | `ReplayInterceptor` |
+| `tapedeck-okhttp-noop` | App | No-op `ReplayInterceptor` with the same constructor |
+| `tapedeck-macrobenchmark` | Benchmark | `ReplayRule` and the replay server |
+| `tapedeck-core` | Both (transitive) | Recording model, HAR 1.2 codec, request matchers |
 
-Add GitHub Packages to your `settings.gradle.kts`:
+**Requirements:** minSdk 23, Java 17, Kotlin 2.0 or later, OkHttp 4.12.
+
+## Setup
+
+### 1. Install the interceptor in the app
+
 ```kotlin
-dependencyResolutionManagement {
-    repositories {
-        google()
-        mavenCentral()
-        maven {
-            url = uri("https://maven.pkg.github.com/jrocharodrigues/tapedeck")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: "<your-github-username>"
-                password = System.getenv("GITHUB_TOKEN") ?: "<your-github-pat>"
-            }
-        }
-    }
-}
+val client = OkHttpClient.Builder()
+    .addInterceptor(
+        ReplayInterceptor(
+            hosts = setOf("api.example.com", "*.cdn.example.com"),
+        ),
+    )
+    .build()
 ```
 
-GitHub Packages needs a token with the `read:packages` scope, even for public packages. Add dependencies using the
-coordinates the build publishes there:
-```kotlin
-// App module (build.gradle.kts)
-benchmarkImplementation("com.impecabel.tapedeck:tapedeck-okhttp:0.2.1")
-releaseImplementation("com.impecabel.tapedeck:tapedeck-okhttp-noop:0.2.1")
+Add it as an application interceptor, ahead of any interceptor that depends on the request's host or scheme. Clients
+derived with `newBuilder()` inherit it.
 
-// Macrobenchmark module (build.gradle.kts)
-implementation("com.impecabel.tapedeck:tapedeck-macrobenchmark:0.2.1")
-```
+### 2. Allow the app to reach the server
 
----
+The interceptor sends requests to `http://127.0.0.1`, which apps targeting API 28 or later may only do when their
+network security config permits cleartext traffic to that address. This applies to the app under test, in the build
+type the benchmark runs.
 
-## Quickstart
+- If the app's config already permits cleartext globally, nothing is needed.
+- If the app has no config, add one to the benchmark build type, for example
+  `app/src/benchmark/res/xml/network_security_config.xml`:
 
-### 1. Let the App Talk to the Server (Cleartext to `127.0.0.1`)
-
-This is about the **app under test**, in the build type the benchmark runs (e.g. `benchmark`), not the benchmark
-module: `ReplayInterceptor` sends the app's requests over plain HTTP to `127.0.0.1`, which apps targeting API 28+ may
-not do by default.
-
-- **The app's network security config already permits cleartext globally** (`<base-config
-  cleartextTrafficPermitted="true">`): nothing to do.
-- **The app has no network security config:** create `app/src/benchmark/res/xml/network_security_config.xml`:
   ```xml
-  <?xml version="1.0" encoding="utf-8"?>
   <network-security-config>
       <domain-config cleartextTrafficPermitted="true">
           <domain includeSubdomains="false">127.0.0.1</domain>
@@ -150,51 +109,34 @@ not do by default.
       </domain-config>
   </network-security-config>
   ```
-  and reference it in `app/src/benchmark/AndroidManifest.xml`:
-  ```xml
-  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      xmlns:tools="http://schemas.android.com/tools">
-      <application
-          android:networkSecurityConfig="@xml/network_security_config"
-          tools:targetApi="24" />
-  </manifest>
-  ```
-- **The app has its own network security config:** don't replace it. Setting `android:networkSecurityConfig` in the
-  benchmark source set replaces the app's *whole* config (its base-config cleartext, trust anchors, pinning), which can
-  break the requests the app still makes directly (`forwardPaths`, `alwaysForward`, the network fallback). Instead, add
-  the `127.0.0.1`/`localhost` `domain-config` above to a benchmark copy of the app's config (a file with the same name
-  in `app/src/benchmark/res/xml/` overrides the main one for that build type).
 
-### 2. Add `ReplayInterceptor` to OkHttpClient
+  and reference it from `app/src/benchmark/AndroidManifest.xml` with
+  `android:networkSecurityConfig="@xml/network_security_config"`.
+- If the app has its own config, add the `domain-config` above to a copy of it in the benchmark build type rather than
+  replacing it. Replacing it drops the app's own rules (cleartext, trust anchors, pinning), which the requests that
+  bypass Tapedeck still rely on.
 
-```kotlin
-val okHttpClient = OkHttpClient.Builder()
-    .addInterceptor(
-        ReplayInterceptor(
-            hosts = setOf("api.example.com", "auth.example.com")
-        )
-    )
-    .build()
+### 3. Allow the benchmark to reach the backend
+
+The server runs in the benchmark APK and forwards requests to the real backend, so that APK must be able to reach
+every host the app uses, including `http://` ones. `androidx.benchmark` sets a network security config that permits
+cleartext only to `localhost`. Replace it with the one Tapedeck ships, in the benchmark module's
+`src/main/AndroidManifest.xml`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application
+        android:networkSecurityConfig="@xml/tapedeck_network_security_config"
+        tools:replace="android:networkSecurityConfig" />
+</manifest>
 ```
 
-*In release builds, `ReplayInterceptor` is compiled from `tapedeck-okhttp-noop` and is a pure no-op.*
+This has to be declared by the benchmark module: two libraries setting different configs fail the manifest merge, so
+Tapedeck doesn't set one itself. A module with its own config can keep it, provided it permits cleartext to the app's
+hosts and to `localhost`.
 
-Add it as an application interceptor, before interceptors that depend on the request's host or scheme. Options:
-
-```kotlin
-ReplayInterceptor(
-    hosts = setOf("api.example.com", "*.cdn.example.com"), // "*.x.com" matches subdomains of x.com, not x.com itself
-    forwardPaths = setOf("/media/stream"),  // always straight to the network: the path itself and anything under it
-    alwaysForward = { request -> request.url.queryParameter("live") == "true" }, // any other request to never record
-    fallbackToNetworkOnFailure = true      // Tapedeck's server not reachable: use the network (default)
-)
-```
-
-Both sides use port 28765 (`Tapedeck.DEFAULT_PORT`). To use another one, pass the same `port = …` to
-`ReplayInterceptor` and `ReplayRule`. If the port is already taken when the test starts, `ReplayRule` fails with a
-message naming it.
-
-### 3. Use `ReplayRule` in Macrobenchmark
+### 4. Record and replay in the benchmark
 
 ```kotlin
 @RunWith(AndroidJUnit4::class)
@@ -205,8 +147,8 @@ class StartupBenchmark {
 
     @get:Rule
     val replayRule = ReplayRule(
-        latencyMs = 50L, // Fixed simulated response latency
-        replayPost = listOf("/auth/token") // POST paths safe to replay
+        latencyMs = 150L,
+        replayPost = listOf("/auth/token"),
     )
 
     @Test
@@ -216,105 +158,117 @@ class StartupBenchmark {
         iterations = 10,
         startupMode = StartupMode.COLD,
         setupBlock = {
-            // Records backend responses once during warm-up iteration
+            // Runs once, before the first measured iteration; the app is killed afterwards
             replayRule.recordOnce(this) {
-                pressHome()
                 startActivityAndWait()
+                // Wait here until the app has made the requests the measured launches will make
             }
-        }
+            pressHome()
+        },
     ) {
-        pressHome()
         startActivityAndWait()
     }
 }
 ```
 
-### The Benchmark (Test) APK Must Reach the Backend
+## Configuration
 
-Tapedeck's server runs in the benchmark (test) APK and forwards the app's requests to the real backend (when
-recording, for unmatched requests in replay, and in passthrough), so the test APK must be able to reach every host the
-app uses, `http://` ones included. Out of the box it can: `tapedeck-macrobenchmark`'s manifest, merged into the test
-APK, sets the test APK's network security config to Tapedeck's own, which permits cleartext everywhere (replacing the
-one `androidx.benchmark` merges in, which permits it only to `localhost`, and with which `usesCleartextTraffic="true"`,
-also set, would be ignored).
+### `ReplayInterceptor`
 
-If the benchmark module sets its own `android:networkSecurityConfig`, it takes precedence, and must permit cleartext to
-those hosts (and to `localhost`, which `androidx.benchmark` needs for its trace processor), e.g.
-`<base-config cleartextTrafficPermitted="true" />`.
+| Parameter | Default | Description |
+|---|---|---|
+| `hosts` | — | Hosts routed to the server: exact names, `*.example.com` for its subdomains (not `example.com` itself), or `*` for every host except loopback (`localhost`, `127.0.0.0/8`, `::1`). |
+| `port` | `28765` | Server port. Must match `ReplayRule.port`. |
+| `forwardPaths` | empty | Paths that always go straight to the network, including everything under them. |
+| `alwaysForward` | `{ false }` | Predicate for any other request that must go straight to the network. |
+| `fallbackToNetworkOnFailure` | `true` | Send the request to the network when the server can't be reached, or when it couldn't reach the backend. |
+| `bypassHttpCache` | `false` | Keep requests sent to Tapedeck out of the client's HTTP cache: they are neither served from it nor stored in it. See [HTTP cache](#http-cache). |
+| `enabled` | `true` | When `false`, every request goes straight to the network. |
 
-Should the server still get no response from the backend (cleartext refused, host unreachable, ...), its 502 carries
-`X-Tapedeck-Forward-Failed: <reason>`, and `ReplayInterceptor` (with `fallbackToNetworkOnFailure`, the default) sends
-the request to the network itself, with the app's own network stack. Real backend errors (5xx) are returned as they are.
+### `ReplayRule`
 
----
+| Parameter | Default | Description |
+|---|---|---|
+| `port` | `28765` | Port to listen on. `0` picks a free port (see `actualPort`); the interceptor must then be given the same port. |
+| `latencyMs` | `100` | Delay applied to every replayed response. |
+| `replayPost` | empty | POST paths that may be recorded and replayed. Other POSTs, and PUT, PATCH and DELETE, are always forwarded. |
+| `recordServerErrors` | `false` | Record 5xx responses. When `false`, they are forwarded on every run instead. |
+| `onUnmatched` | `FORWARD` | Requests missing from the recording during replay: `FORWARD` them to the backend, or answer `500` (`FAIL`) or `404` (`NOT_FOUND`). |
+| `followRedirects` | `true` | Follow redirects when forwarding. See [Redirects](#redirects). |
+| `harOutputFile` | `null` | Write the recording to this file as HAR 1.2. |
+| `matcher` | method + URL | Custom `RequestMatcher` for replay lookups. |
+| `enabled` | `true` | When `false`, no server is started and `recordOnce` does nothing; the app uses the real backend. |
 
-## Configuration Options
-
-### `ReplayRule` (Test Side)
+To run the same benchmark against the real backend, drive `enabled` from an instrumentation argument:
 
 ```kotlin
 val replayRule = ReplayRule(
-    port = Tapedeck.DEFAULT_PORT,  // 28765; must match ReplayInterceptor's. 0 = a free port (JVM tests, see actualPort)
-    latencyMs = 50L,               // Fixed simulated latency in milliseconds (default: 100ms)
-    replayPost = listOf("/auth"), // POST endpoints safe to replay
-    recordServerErrors = false,    // Do not record 5xx backend responses (default: false)
-    onUnmatched = OnUnmatched.FORWARD, // What to do if an unknown request appears in replay mode (FORWARD, FAIL, NOT_FOUND)
-    harOutputFile = File(context.filesDir, "benchmark_run.har"), // Optional: export recording to HAR
-    enabled = true,                // false: no server and no recording, the app talks to the real backend
-    followRedirects = true         // false: record and replay each 3xx hop instead of only the final response
+    enabled = InstrumentationRegistry.getArguments().getString("tapedeck") != "off",
 )
 ```
+
+```shell
+./gradlew :benchmark:connectedCheck -Pandroid.testInstrumentationRunnerArguments.tapedeck=off
+```
+
+## Behaviour
+
+### Matching
+
+A request is answered with the recorded response for the same method and full URL. When none exists, a response for
+the same method, host and path, ignoring the query, is used instead. When several responses match equally, the one
+recorded first is served. Bodies are stored and served decoded, without `Content-Encoding`.
 
 ### Redirects
 
-With `followRedirects = true` (the default), the server follows the backend's redirects: the final response is
-recorded and replayed for the original URL, and **the app sees the final response, not the 3xx**.
+With `followRedirects = true`, the server follows redirects while recording, and the app receives the final response
+for the original URL.
 
-With `followRedirects = false`, each 3xx is recorded and replayed as-is (with its `Location`), and the redirect target
-is fetched, recorded and replayed as a request of its own. OkHttp follows redirects *below* application interceptors,
-so the app's follow-up request never passes through `ReplayInterceptor`; and it can't be added with
-`addNetworkInterceptor` instead, since network interceptors may not change the host or port. So the server serves each
-3xx with its `Location` pointing back at itself (`http://127.0.0.1:<port>/__tapedeck/redirect?url=<target>`, with the port the server actually listens on), and the
-app's own redirect handling sends every hop through Tapedeck. Recordings keep the backend's original `Location`. As
-when OkHttp follows a redirect, `Authorization` isn't sent to a different host. An app that handles redirects itself
-(`followRedirects(false)` on its client) sees the rewritten `Location`.
+With `followRedirects = false`, each 3xx response is recorded and replayed as received, and each redirect target is
+recorded as a request of its own. Because OkHttp follows redirects below application interceptors, the server rewrites
+`Location` to point back at itself, so every hop is served by Tapedeck. Recordings keep the original `Location`. As
+with OkHttp, `Authorization` is not forwarded to a different host. Apps that handle redirects themselves see the
+rewritten `Location`.
 
-To measure against the real backend without code changes, drive `enabled` from an instrumentation argument:
-```kotlin
-val replayRule = ReplayRule(
-    enabled = InstrumentationRegistry.getArguments().getString("tapedeck") != "off"
-)
-```
-and run with `-Pandroid.testInstrumentationRunnerArguments.tapedeck=off`.
+### HTTP cache
 
-Replayed responses are matched by method and full URL first, across the whole recording, and only then by method, host
-and path (ignoring the query); the earliest recorded response wins among equal matches. Bodies are recorded and replayed
-decoded (no `Content-Encoding`), whatever compression the backend used.
+Requests sent to Tapedeck pass through the app's whole OkHttp stack, including its HTTP cache: replayed responses are
+written to the cache, and later requests may be answered from it, as with the real backend. This keeps the cache's
+cost in the measurement, which on devices with slow storage can be significant.
 
-### Summary Report
+With `bypassHttpCache = true`, the interceptor marks those requests `Cache-Control: no-cache, no-store`, so OkHttp
+neither serves them from the cache nor stores their responses, even when a network interceptor rewrites the response's
+cache headers. The server restores the request's own `Cache-Control` before recording or forwarding it. Use it to
+measure the app without its HTTP cache, or to reduce run-to-run variance. Requests that go straight to the network
+still use the cache.
 
-When the benchmark run finishes, Tapedeck logs a summary of all intercepted requests to Logcat:
+### Failures
+
+If the server cannot reach the backend (unresolved host, refused connection, blocked cleartext), it responds with
+`502` and an `X-Tapedeck-Forward-Failed` header, and the interceptor retries the request through the app's own network
+stack. Error responses from the backend itself are passed through unchanged.
+
+## Report
+
+At the end of each test, `ReplayRule` logs a summary:
+
 ```text
 === Tapedeck Benchmark Report ===
-Total Requests Handled : 42
-  - Recorded (Warmup)  : 4
-  - Replayed           : 36
-  - Forwarded to Net   : 2
-  - Unmatched Requests : 0
+Total Requests Handled : 647
+  - Recorded (Warmup)  : 56
+  - Replayed           : 583
+  - Forwarded to Net   : 8
+  - Unmatched Requests : 8
 =================================
 ```
 
----
+Unmatched requests are worth checking: they usually mean the measured launches made requests the warm-up launch did
+not, and those requests still depend on the backend.
 
-## Inspecting Recordings
+## Inspecting recordings
 
-Tapedeck uses the standard **HAR 1.2 (HTTP Archive)** format. Any recording exported via `harOutputFile` can be imported directly into:
-- Google Chrome DevTools (Network tab -> Import HAR)
-- Charles Proxy
-- Proxyman
-- Fiddler
-
----
+Recordings written with `harOutputFile` are standard HAR 1.2 files and open in Chrome DevTools (Network › Import HAR),
+Charles, Proxyman and Fiddler.
 
 ## License
 

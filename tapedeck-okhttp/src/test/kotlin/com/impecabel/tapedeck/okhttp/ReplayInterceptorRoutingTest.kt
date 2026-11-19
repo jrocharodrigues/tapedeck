@@ -57,6 +57,47 @@ class ReplayInterceptorRoutingTest {
     }
 
     @Test
+    fun `star matches every host but loopback ones`() {
+        listOf("api.example.com", "cdn-er-images.online.meo.pt", "example", "10.0.0.1", "2001:db8::1", "127.example.com")
+            .forEach { assertTrue(it, ReplayInterceptor.hostMatches("*", it)) }
+        listOf("127.0.0.1", "127.1.2.3", "localhost", "LOCALHOST", "a.localhost", "::1")
+            .forEach { assertFalse(it, ReplayInterceptor.hostMatches("*", it)) }
+        // Other patterns are unchanged: an explicit loopback host is still sent
+        assertTrue(ReplayInterceptor.hostMatches("localhost", "localhost"))
+    }
+
+    @Test
+    fun `star never sends loopback requests to the server`() {
+        // The backend is reached as 127.0.0.1 (loopback): straight to the network
+        val client = OkHttpClient.Builder()
+            .addInterceptor(ReplayInterceptor(hosts = setOf("*"), port = tapedeck.port)).build()
+        val body = client.newCall(Request.Builder().url(backend.url("/video")).build()).execute().use { it.body!!.string() }
+        assertEquals("backend", body)
+        assertEquals(0, tapedeck.requestCount)
+        // Through [::1] too
+        val v6 = backend.url("/video").newBuilder().host("::1").build()
+        runCatching { client.newCall(Request.Builder().url(v6).build()).execute().close() }
+        assertEquals(0, tapedeck.requestCount)
+    }
+
+    @Test
+    fun `star sends other hosts to the server, except forward paths`() {
+        // A non-loopback host name, resolved to the local backend: "*" applies to it
+        val client = OkHttpClient.Builder()
+            .dns(object : okhttp3.Dns { override fun lookup(hostname: String) = listOf(java.net.InetAddress.getByName("127.0.0.1")) })
+            .addInterceptor(ReplayInterceptor(hosts = setOf("*"), port = tapedeck.port, forwardPaths = setOf("/live")))
+            .build()
+        fun get(path: String) = client.newCall(
+            Request.Builder().url("http://bypass.example.test:${backend.port}$path").build()
+        ).execute().use { it.body!!.string() }
+
+        assertEquals("tapedeck", get("/check"))
+        assertEquals("backend", get("/live/stream"))
+        assertEquals(1, tapedeck.requestCount)
+        assertEquals(1, backend.requestCount)
+    }
+
+    @Test
     fun `forward paths on an allowed host go straight to the network`() {
         val interceptor = ReplayInterceptor(
             hosts = setOf("localhost"),

@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- README, Quickstart step 4: the server forwards the app's cleartext requests, which androidx.benchmark's
+         localhost-only network security config would refuse -->
+    <application
+        android:networkSecurityConfig="@xml/tapedeck_network_security_config"
+        tools:replace="android:networkSecurityConfig" />
 </manifest>

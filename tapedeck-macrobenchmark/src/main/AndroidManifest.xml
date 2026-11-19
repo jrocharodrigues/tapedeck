@@ -1,14 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Merged into the benchmark (test) APK: the server listens on 127.0.0.1 and forwards to the real backend -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- The server forwards whatever the app sends, http:// included, but the test APK targets API 28+, which forbids
-         cleartext, and androidx.benchmark merges in a network security config that only permits it to localhost (which
-         also makes usesCleartextTraffic ignored). So Tapedeck's config, which permits cleartext everywhere, replaces it. -->
-    <application
-        android:networkSecurityConfig="@xml/tapedeck_network_security_config"
-        android:usesCleartextTraffic="true"
-        tools:replace="android:networkSecurityConfig" />
+    <!-- No networkSecurityConfig here: androidx.benchmark's manifest sets one, and a conflict between two libraries can
+         only be resolved by the consuming module. The test module must select @xml/tapedeck_network_security_config
+         itself (see README, Quickstart). -->
 </manifest>

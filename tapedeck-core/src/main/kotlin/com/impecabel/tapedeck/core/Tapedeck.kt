@@ -12,6 +12,13 @@ object Tapedeck {
     const val HEADER_ORIGINAL_HOST = "X-Tapedeck-Original-Host"
 
     /**
+     * Set by `ReplayInterceptor` when it bypasses the app's HTTP cache: the request's own `Cache-Control`, empty when it
+     * had none. The server restores it in place of the `Cache-Control` the interceptor set, before recording or
+     * forwarding the request.
+     */
+    const val HEADER_ORIGINAL_CACHE_CONTROL = "X-Tapedeck-Original-Cache-Control"
+
+    /**
      * Set by the server on its 502 when forwarding a request got no response from the backend (e.g. it couldn't connect,
      * or the test APK's network security policy refused it), with the reason. `ReplayInterceptor` then sends the request
      * to the network itself. Real backend responses, 5xx included, never carry it.
@@ -26,5 +33,5 @@ object Tapedeck {
     const val REDIRECT_URL_PARAMETER = "url"
     const val REDIRECT_FROM_PARAMETER = "from"
 
-    const val VERSION = "0.2.1"
+    const val VERSION = "0.2.2"
 }
