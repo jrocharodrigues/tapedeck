@@ -1,6 +1,7 @@
 package com.impecabel.tapedeck.okhttp
 
 import com.impecabel.tapedeck.core.Tapedeck
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -61,11 +62,11 @@ class ReplayInterceptor(
         }
 
         if (!fallbackToNetworkOnFailure) {
-            return chain.proceed(rewrite(request, port))
+            return withRealUrl(chain.proceed(rewrite(request, port)), request)
         }
 
         val response = try {
-            chain.proceed(rewrite(request, port))
+            withRealUrl(chain.proceed(rewrite(request, port)), request)
         } catch (e: ConnectException) {
             logger.log(
                 Level.WARNING,
@@ -81,6 +82,22 @@ class ReplayInterceptor(
             "Tapedeck couldn't forward ${request.url} ($forwardFailure). Sending it to the real network directly."
         )
         return chain.proceed(request)
+    }
+
+    /**
+     * [response], served by Tapedeck's server, with the URL it answers in `response.request`: the request's own, or with
+     * `followRedirects = false` the last redirect's target, instead of the server's 127.0.0.1 one. Clients read it as
+     * the response's final URL, e.g. Media3's `OkHttpDataSource.getUri()`, against which a DASH or HLS player resolves the
+     * manifest's relative URLs: with the server's, those requests would go to the server directly, without the
+     * original URL.
+     */
+    private fun withRealUrl(response: Response, request: Request): Response {
+        val served = response.request.url
+        val realUrl = served.takeIf { it.encodedPath == Tapedeck.REDIRECT_PATH }
+            ?.queryParameter(Tapedeck.REDIRECT_URL_PARAMETER)
+            ?.toHttpUrlOrNull()
+            ?: request.url
+        return response.newBuilder().request(request.newBuilder().url(realUrl).build()).build()
     }
 
     private fun rewrite(request: Request, serverPort: Int): Request {

@@ -50,6 +50,7 @@ class TapedeckDispatcher(
         .build()
 
     private val warnedAboutRedirects = AtomicBoolean(false)
+    private val warnedAboutDirectRequests = AtomicBoolean(false)
 
     // Switched by the test thread between launches, read by MockWebServer's threads
     @Volatile
@@ -71,8 +72,7 @@ class TapedeckDispatcher(
             ?.queryParameter(Tapedeck.REDIRECT_URL_PARAMETER)
         val originalUrl = redirectTarget
             ?: request.getHeader(Tapedeck.HEADER_ORIGINAL_URL)
-            ?: serverUrl?.toString()
-            ?: "http://127.0.0.1"
+            ?: return rejectDirectRequest(serverUrl)
 
         var headers = request.headers.toMultimap()
         val originalCacheControl = request.getHeader(Tapedeck.HEADER_ORIGINAL_CACHE_CONTROL)
@@ -156,6 +156,26 @@ class TapedeckDispatcher(
                     .setBody("Tapedeck: 404 Not Found")
             }
         }
+    }
+
+    /**
+     * A request sent to the server directly, not through `ReplayInterceptor`: it has no original URL, and forwarding it
+     * would send it to this server again, endlessly (each hop holding a server thread).
+     */
+    private fun rejectDirectRequest(serverUrl: HttpUrl?): MockResponse {
+        unmatchedCount.incrementAndGet()
+        if (warnedAboutDirectRequests.compareAndSet(false, true)) {
+            logger.log(
+                Level.WARNING,
+                "Tapedeck: $serverUrl was sent to the server directly, not through ReplayInterceptor, so its real URL " +
+                    "is unknown; answered with 502 (logged once). Usually a URL resolved against a replayed response's " +
+                    "127.0.0.1 one, or a client without ReplayInterceptor given such a URL."
+            )
+        }
+        return MockResponse()
+            .setResponseCode(502)
+            .setHeader(Tapedeck.HEADER_FORWARD_FAILED, "Direct request to the Tapedeck server, without its original URL")
+            .setBody("Tapedeck Bad Gateway: $serverUrl has no original URL (not sent through ReplayInterceptor)")
     }
 
     private class Forwarded(val response: RecordedResponse?, val error: Exception?, val durationMs: Long)

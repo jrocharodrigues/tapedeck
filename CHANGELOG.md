@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- A response served by Tapedeck carried the server's `127.0.0.1` URL in `response.request`, which clients read as the
+  response's final URL: a DASH or HLS player (Media3's `OkHttpDataSource.getUri()`) resolved the manifest's relative
+  URLs against it, and sent those requests to the server directly. `ReplayInterceptor` now sets the request's real URL
+  (with `followRedirects = false`, the last redirect's target).
+- A request reaching the server directly, without its original URL, was forwarded to the server's own URL, which came
+  back as another such request, endlessly: hundreds of requests a second, starving the device under test. It's now
+  answered with a 502 carrying `X-Tapedeck-Forward-Failed`, and a warning is logged once.
+
 ## 0.2.2
 
 ### Added
